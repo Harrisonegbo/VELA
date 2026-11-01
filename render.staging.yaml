@@ -1,0 +1,64 @@
+services:
+  - type: web
+    name: vela-api-staging
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: vela-db-staging
+          property: connectionString
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-6
+      - key: BOOTSTRAP_ADMIN_TOKEN
+        sync: false
+      - key: TOKEN_ENCRYPTION_KEY
+        sync: false
+      - key: PUBLIC_API_URL
+        value: https://vela-api-staging.onrender.com
+      - key: DASHBOARD_URL
+        value: https://vela-dashboard-staging.onrender.com
+      - key: QUICKBOOKS_CLIENT_ID
+        sync: false
+      - key: QUICKBOOKS_CLIENT_SECRET
+        sync: false
+      - key: QUICKBOOKS_ENVIRONMENT
+        value: sandbox
+      - key: QUICKBOOKS_REDIRECT_URI
+        value: https://vela-api-staging.onrender.com/api/integrations/quickbooks/callback
+      - key: CORS_ORIGINS
+        value: https://vela-dashboard-staging.onrender.com
+      - key: PRICE_CREEP_ALERT_PERCENT
+        value: "8"
+
+  - type: cron
+    name: vela-daily-scan-staging
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m app.daily_scan
+    schedule: "0 6 * * *"
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: vela-db-staging
+          property: connectionString
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-6
+
+  - type: web
+    name: vela-dashboard-staging
+    runtime: static
+    rootDir: frontend
+    buildCommand: echo "Serving VÈLA staging dashboard"
+    staticPublishPath: .
+
+databases:
+  - name: vela-db-staging
