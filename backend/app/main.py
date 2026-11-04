@@ -118,7 +118,7 @@ class BootstrapClaim(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 Base.metadata.create_all(engine)
-app = FastAPI(title="VÈLA API", version="0.2.0")
+app = FastAPI(title="VELA API", version="0.2.0")
 allowed = [x.strip() for x in os.getenv("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:5500").split(",") if x.strip()]
 app.add_middleware(CORSMiddleware, allow_origins=allowed, allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 

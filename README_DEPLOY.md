@@ -1,11 +1,11 @@
-# VÈLA — live-data deployment
+# VELA — live-data deployment
 
 The dashboard no longer presents sample business records when the backend is unavailable. A live deployment requires the FastAPI service, configured user accounts, and provider credentials. This workspace currently supports QuickBooks Online for financial reports, vendors, items, bills, and purchase orders; SAP Ariba is not connected.
 
 ## What is live
 
 - Competitor records, scans, uploaded invoice extraction, and alerts are stored by the FastAPI backend.
-- QuickBooks Online connects through OAuth 2.0. VÈLA reads the Profit and Loss report, vendors, items, bills, and purchase orders. It does not write to QuickBooks.
+- QuickBooks Online connects through OAuth 2.0. VELA reads the Profit and Loss report, vendors, items, bills, and purchase orders. It does not write to QuickBooks.
 - QuickBooks access and refresh tokens are encrypted in the database with `TOKEN_ENCRYPTION_KEY`; provider secrets stay on the backend.
 - User accounts have `admin`, `editor`, and `viewer` roles. Registrations after initial setup remain pending until an administrator approves them.
 - Sessions use random opaque browser tokens; only token hashes are stored in the database. Logging out revokes the server-side session.
@@ -17,7 +17,7 @@ The dashboard no longer presents sample business records when the backend is una
 ## Deploy with Render Blueprint
 
 1. Push the contents of this folder to a GitHub repository, then create a Render Blueprint from `render.yaml` for production.
-2. To create staging, create a separate Blueprint from `render.staging.yaml`. It has its own API, dashboard, cron job, and PostgreSQL database; never point the staging services at production resources. The VÈLA service URLs are `https://vela-api.onrender.com` and `https://vela-dashboard.onrender.com` in production, and use the `-staging` names in staging. Confirm Render assigned these exact hostnames before relying on them.
+2. To create staging, create a separate Blueprint from `render.staging.yaml`. It has its own API, dashboard, cron job, and PostgreSQL database; never point the staging services at production resources. The deployed production API URL is `https://vela-api-f1vl.onrender.com`; the production dashboard's expected URL is `https://vela-dashboard.onrender.com`. Staging uses the `-staging` names. Confirm Render assigned these exact hostnames before relying on them.
 3. Configure each environment's secret values independently in its own Render API service:
    - `BOOTSTRAP_ADMIN_TOKEN`: a unique, temporary random token used only to create the first administrator.
    - `TOKEN_ENCRYPTION_KEY`: a unique Fernet key for that environment; never share it between staging and production.
@@ -48,10 +48,10 @@ python -m venv .venv
 pip install -r requirements.txt
 copy .env.example .env
 # edit .env with private values and the exact callback/origin URLs
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --reload --port 8001
 ```
 
-Serve `frontend/index.html` through a local HTTP server on the configured dashboard origin (the example uses `http://127.0.0.1:5500`). Do not open the HTML as `file://`. Set a local `BOOTSTRAP_ADMIN_TOKEN` and `TOKEN_ENCRYPTION_KEY` in `backend/.env`, then create an initial admin using the registration screen. Use a distinct local database and credentials from either hosted environment. The QuickBooks sandbox redirect URI in the example is `http://127.0.0.1:8000/api/integrations/quickbooks/callback`.
+Serve `frontend/index.html` through a local HTTP server on the configured dashboard origin (the example uses `http://127.0.0.1:5500`). Do not open the HTML as `file://`. Set a local `BOOTSTRAP_ADMIN_TOKEN` and `TOKEN_ENCRYPTION_KEY` in `backend/.env`, then create an initial admin using the registration screen. Use a distinct local database and credentials from either hosted environment. The QuickBooks sandbox redirect URI in the example is `http://127.0.0.1:8001/api/integrations/quickbooks/callback`.
 
 ## Data interpretation and limits
 

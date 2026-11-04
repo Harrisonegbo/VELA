@@ -57,7 +57,7 @@ services:
     name: vela-dashboard-staging
     runtime: static
     rootDir: frontend
-    buildCommand: echo "Serving VÈLA staging dashboard"
+    buildCommand: echo "Serving VELA staging dashboard"
     staticPublishPath: .
 
 databases:
