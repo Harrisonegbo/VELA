@@ -275,8 +275,10 @@
   }
 
   pwLoadLiveData = async function () {
-    await backendLoadLiveData();
-    const status = await pwApi('/api/integrations/quickbooks/status');
+    const [, status] = await Promise.all([
+      backendLoadLiveData(),
+      pwApi('/api/integrations/quickbooks/status'),
+    ]);
     quickBooksStatus = status;
     quickBooksData = status.connected ? await pwApi('/api/integrations/quickbooks/dashboard') : null;
     mapQuickBooksData();
@@ -656,7 +658,6 @@
       currentUser = session.user;
       setIdentity();
       hideGate();
-      await pwApi('/api/health');
       await pwLoadLiveData();
       pwStatus('Live backend connected. Figures come from saved records and configured data providers; verify source documents before acting.', true);
       updateQuickBooksControls();

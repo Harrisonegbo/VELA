@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 import re
@@ -17,6 +18,7 @@ from .main import OAuthState, QuickBooksCredential, allowed, db_session
 router = APIRouter(prefix="/api/integrations/quickbooks", tags=["QuickBooks Online"])
 OAUTH_AUTHORIZE_URL = "https://appcenter.intuit.com/connect/oauth2"
 OAUTH_TOKEN_URL = "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer"
+_credential_refresh_lock = asyncio.Lock()
 
 
 def _environment() -> str:
@@ -230,15 +232,30 @@ async def _refresh_credential(db: Session, credential: QuickBooksCredential) -> 
     db.commit()
 
 
+async def _refresh_credential_if_needed(
+    db: Session,
+    credential: QuickBooksCredential,
+    rejected_token: str | None = None,
+) -> None:
+    async with _credential_refresh_lock:
+        db.refresh(credential)
+        if rejected_token is not None and credential.access_token != rejected_token:
+            return
+        expiry = _utc_datetime(credential.expires_at)
+        if rejected_token is not None or expiry <= datetime.now(timezone.utc) + timedelta(seconds=60):
+            await _refresh_credential(db, credential)
+
+
 async def _qbo_get(db: Session, credential: QuickBooksCredential, path: str, params: dict[str, str] | None = None) -> dict[str, Any]:
     expiry = credential.expires_at
     if expiry.tzinfo is None:
         expiry = expiry.replace(tzinfo=timezone.utc)
     if expiry <= datetime.now(timezone.utc) + timedelta(seconds=60):
-        await _refresh_credential(db, credential)
+        await _refresh_credential_if_needed(db, credential)
     base = _api_base(credential.environment, credential.realm_id)
     for attempt in range(2):
-        token = _decrypt(credential.access_token)
+        stored_token = credential.access_token
+        token = _decrypt(stored_token)
         try:
             async with httpx.AsyncClient(timeout=25) as client:
                 response = await client.get(
@@ -247,7 +264,7 @@ async def _qbo_get(db: Session, credential: QuickBooksCredential, path: str, par
                     headers={"Authorization": f"Bearer {token}", "Accept": "application/json"},
                 )
             if response.status_code == 401 and attempt == 0:
-                await _refresh_credential(db, credential)
+                await _refresh_credential_if_needed(db, credential, stored_token)
                 continue
             if response.is_error:
                 raise HTTPException(502, f"QuickBooks data request failed ({response.status_code}) for {path}.")
@@ -399,18 +416,23 @@ async def quickbooks_dashboard(db: Session = Depends(db_session)):
     if not credential:
         raise HTTPException(409, "Connect a QuickBooks company before loading live financial data.")
     start_date, end_date = _report_period()
-    report = await _qbo_get(
-        db,
-        credential,
-        "reports/ProfitAndLoss",
-        {"start_date": start_date, "end_date": end_date},
+    await _refresh_credential_if_needed(db, credential)
+    report, company_response, vendors, items, raw_bills, raw_purchase_orders = await asyncio.gather(
+        _qbo_get(
+            db,
+            credential,
+            "reports/ProfitAndLoss",
+            {"start_date": start_date, "end_date": end_date},
+        ),
+        _qbo_get(db, credential, f"companyinfo/{credential.realm_id}"),
+        _query_entity(db, credential, "Vendor"),
+        _query_entity(db, credential, "Item"),
+        _query_entity(db, credential, "Bill"),
+        _query_entity(db, credential, "PurchaseOrder"),
     )
-    company_response = await _qbo_get(db, credential, f"companyinfo/{credential.realm_id}")
     company_info = company_response.get("CompanyInfo") or {}
-    vendors = await _query_entity(db, credential, "Vendor")
-    items = await _query_entity(db, credential, "Item")
-    bills = [_normalize_bill(row) for row in await _query_entity(db, credential, "Bill")]
-    purchase_orders = [_normalize_purchase_order(row) for row in await _query_entity(db, credential, "PurchaseOrder")]
+    bills = [_normalize_bill(row) for row in raw_bills]
+    purchase_orders = [_normalize_purchase_order(row) for row in raw_purchase_orders]
 
     income = _report_group_total(report, "Income")
     expenses = _report_group_total(report, "Expenses")
