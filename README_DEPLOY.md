@@ -17,7 +17,7 @@ The dashboard no longer presents sample business records when the backend is una
 ## Deploy with Render Blueprint
 
 1. Push the contents of this folder to a GitHub repository, then create a Render Blueprint from `render.yaml` for production.
-2. To create staging, create a separate Blueprint from `render.staging.yaml`. It has its own API, dashboard, cron job, and PostgreSQL database; never point the staging services at production resources. The deployed production API URL is `https://vela-api-f1vl.onrender.com`; the production dashboard's expected URL is `https://vela-dashboard.onrender.com`. Staging uses the `-staging` names. Confirm Render assigned these exact hostnames before relying on them.
+2. To create staging, create a separate Blueprint from `render.staging.yaml`. It has its own API, dashboard, cron job, and PostgreSQL database; never point the staging services at production resources. The deployed production API URL is `https://vela-api-xiby.onrender.com`; the production dashboard's expected URL is `https://vela-dashboard.onrender.com`. Staging uses the `-staging` names. Confirm Render assigned these exact hostnames before relying on them.
 3. Configure each environment's secret values independently in its own Render API service:
    - `BOOTSTRAP_ADMIN_TOKEN`: a unique, temporary random token used only to create the first administrator.
    - `TOKEN_ENCRYPTION_KEY`: a unique Fernet key for that environment; never share it between staging and production.

@@ -252,9 +252,9 @@ const PW_DEFAULT_API_BASE = PW_LOCAL_HOST
   ? 'http://127.0.0.1:8001'
   : location.hostname === 'vela-dashboard-staging.onrender.com'
     ? 'https://vela-api-staging.onrender.com'
-    : 'https://vela-api-f1vl.onrender.com';
+    : 'https://vela-api-xiby.onrender.com';
 const pwSecureApiBase = base => {
-  const clean = base.trim().replace(/\/+$/, '').replace(/^https?:\/\/vela-api\.onrender\.com(?=\/|$)/i, 'https://vela-api-f1vl.onrender.com');
+  const clean = base.trim().replace(/\/+$/, '').replace(/^https?:\/\/(?:vela-api(?:-f1vl)?\.onrender\.com)(?=\/|$)/i, 'https://vela-api-xiby.onrender.com');
   if (location.protocol !== 'https:' || !/^http:\/\//i.test(clean)) return clean;
   const host = clean.slice(7).split(/[/:?#]/, 1)[0].toLowerCase();
   return ['localhost', '127.0.0.1'].includes(host) ? clean : `https://${clean.slice(7)}`;
