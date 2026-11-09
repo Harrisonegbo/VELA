@@ -1,0 +1,131 @@
+:root {
+  --navy: #172554;
+  --navy2: #244466;
+  --blue: #4268e8;
+  --teal: #0c9f83;
+  --purple: #8057e8;
+  --orange: #e98a32;
+  --red: #d94f61;
+  --ink: #17243a;
+  --muted: #64748b;
+  --line: #e3e9f2;
+  --bg: #f3f6fb;
+  --white: #fff;
+  --shadow: 0 10px 28px rgba(23, 37, 84, .07);
+}
+
+body {
+  background:
+    radial-gradient(ellipse at 96% 0, rgba(91, 131, 238, .09), transparent 34rem),
+    var(--bg);
+}
+
+.sidebar {
+  background: linear-gradient(180deg, #172554 0%, #153b58 55%, #102b45 100%);
+}
+
+.brandmark {
+  color: #73e5ce;
+}
+
+.nav button {
+  transition: background .18s ease, transform .18s ease;
+}
+
+.nav button:hover {
+  background: rgba(255, 255, 255, .1);
+  transform: translateX(2px);
+}
+
+.nav button.active {
+  background: linear-gradient(105deg, #6478f3, #367de8);
+  box-shadow: 0 7px 18px rgba(47, 105, 222, .28);
+}
+
+.sidebar-bottom {
+  border-color: rgba(157, 189, 224, .26);
+  background: rgba(255, 255, 255, .07);
+}
+
+.topbar {
+  box-shadow: 0 3px 14px rgba(23, 37, 84, .035);
+}
+
+.card {
+  border-radius: 15px;
+  box-shadow: var(--shadow);
+  transition: border-color .18s ease, box-shadow .18s ease;
+}
+
+.card:hover {
+  border-color: #d4deed;
+  box-shadow: 0 13px 32px rgba(23, 37, 84, .09);
+}
+
+.kpis > .card:nth-child(1) { border-top: 3px solid var(--teal); }
+.kpis > .card:nth-child(2) { border-top: 3px solid var(--blue); }
+.kpis > .card:nth-child(3) { border-top: 3px solid var(--purple); }
+.kpis > .card:nth-child(4) { border-top: 3px solid var(--orange); }
+
+.btn {
+  border-radius: 9px;
+  transition: border-color .16s ease, background .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+
+.btn:hover {
+  box-shadow: 0 4px 12px rgba(33, 72, 131, .1);
+}
+
+.btn.primary {
+  background: linear-gradient(105deg, #5270ed, #3379e5);
+  border-color: #4268e8;
+}
+
+.btn.primary:hover {
+  box-shadow: 0 6px 16px rgba(66, 104, 232, .24);
+  transform: translateY(-1px);
+}
+
+.filters input:focus,
+.filters select:focus,
+.field input:focus,
+.field select:focus,
+.field textarea:focus,
+.business-select:focus {
+  border-color: #6f8cf0;
+  outline: 3px solid rgba(66, 104, 232, .13);
+}
+
+:is(button, input, select, textarea, a):focus-visible {
+  outline: 3px solid rgba(66, 104, 232, .42);
+  outline-offset: 2px;
+}
+
+.country-picker-button {
+  min-width: 46px;
+  width: auto;
+  padding: 0 9px;
+  border-color: #d7e1f1;
+  background: linear-gradient(145deg, #f1f5ff, #fff);
+  color: #3357bf;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .04em;
+}
+
+.notice {
+  background: #fff8eb;
+  border-color: #f3dfb7;
+  color: #805c20;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

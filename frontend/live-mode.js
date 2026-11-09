@@ -42,6 +42,9 @@
   let authMode = 'login';
   let quickBooksData = null;
   let quickBooksItems = [];
+  let providerHealth = null;
+  let lastClientRefreshAt = 0;
+  let clientRefreshInProgress = false;
   let backendLoadLiveData = pwLoadLiveData;
   let originalRenderAll = renderAll;
   let originalEditNegotiation = editNegotiation;
@@ -274,16 +277,126 @@
     alerts = [...alerts.filter(alert => alert.apiKind !== 'quickbooks_observation'), ...sourceAlerts];
   }
 
+  async function applyCompetitorProviderData() {
+    const records = await pwApi('/api/competitors');
+    const byId = new Map(records.map(record => [record.id, record]));
+    competitors = competitors.map(item => {
+      const record = byId.get(item.id);
+      if (!record) return item;
+      return {
+        ...item,
+        theirs: record.last_price === null ? null : Number(record.last_price),
+        lastPrice: record.last_price === null ? null : Number(record.last_price),
+        googlePlaceId: record.google_place_id,
+        googlePriceLevel: record.google_price_level,
+        googlePriceRange: record.google_price_range,
+        googleMapsUri: record.google_maps_uri,
+        googleCheckedAt: record.google_checked_at,
+      };
+    });
+  }
+
+  async function refreshBackendRecords() {
+    const [, health] = await Promise.all([
+      backendLoadLiveData(),
+      pwApi('/api/health'),
+    ]);
+    providerHealth = health;
+    await applyCompetitorProviderData();
+    lastClientRefreshAt = Date.now();
+    renderAll();
+  }
+
   pwLoadLiveData = async function () {
-    const [, status] = await Promise.all([
+    const [, status, health] = await Promise.all([
       backendLoadLiveData(),
       pwApi('/api/integrations/quickbooks/status'),
+      pwApi('/api/health'),
     ]);
+    await applyCompetitorProviderData();
+    lastClientRefreshAt = Date.now();
     quickBooksStatus = status;
+    providerHealth = health;
     quickBooksData = status.connected ? await pwApi('/api/integrations/quickbooks/dashboard') : null;
     mapQuickBooksData();
     renderAll();
   };
+
+  const mapsPriceLevelLabel = level => ({
+    PRICE_LEVEL_FREE: 'Free',
+    PRICE_LEVEL_INEXPENSIVE: 'Inexpensive',
+    PRICE_LEVEL_MODERATE: 'Moderate',
+    PRICE_LEVEL_EXPENSIVE: 'Expensive',
+    PRICE_LEVEL_VERY_EXPENSIVE: 'Very expensive',
+  })[level] || '';
+
+  function renderLiveCompetitors() {
+    const body = $('#competitorRows');
+    if (!body) return;
+    const query = ($('#competitorSearch')?.value || '').trim().toLowerCase();
+    const filter = $('#competitorFilter')?.value || 'all';
+    const filtered = competitors.filter(item => {
+      const matchesQuery = `${item.item} ${item.competitor} ${item.category}`.toLowerCase().includes(query);
+      const position = item.lastPrice === null || item.lastPrice === undefined
+        ? 'unobserved'
+        : competitorPosition(item);
+      return matchesQuery && (filter === 'all' || filter === position);
+    });
+    body.innerHTML = filtered.map(item => {
+      const level = mapsPriceLevelLabel(item.googlePriceLevel);
+      const priceNote = level
+        ? `<small>Google Maps business price level: ${esc(level)} (estimate)</small>`
+        : '';
+      let mapsUri = null;
+      try {
+        const parsedMapsUri = new URL(item.googleMapsUri);
+        if (parsedMapsUri.protocol === 'https:') mapsUri = parsedMapsUri.href;
+      } catch {
+        mapsUri = null;
+      }
+      const mapsLink = mapsUri
+        ? `<a href="${esc(mapsUri)}" target="_blank" rel="noopener noreferrer">Maps</a>`
+        : '';
+      const competitorPrice = item.lastPrice === null || item.lastPrice === undefined
+        ? '—'
+        : formatMoney(item.lastPrice, item.currency);
+      const difference = item.lastPrice === null || item.lastPrice === undefined
+        ? '—'
+        : `${item.lastPrice < item.mine ? '−' : item.lastPrice > item.mine ? '+' : ''}${formatMoney(Math.abs(item.lastPrice - item.mine), item.currency)}`;
+      return `
+        <tr>
+          <td><b>${esc(item.item)}</b></td>
+          <td><b>${esc(item.competitor)}</b><br>${priceNote}${mapsLink}</td>
+          <td>${formatMoney(item.mine, item.currency)}</td>
+          <td>${competitorPrice}</td>
+          <td>${difference}</td>
+          <td>${esc(item.checked || 'Not scanned')}</td>
+          <td><button class="btn small" type="button" data-scan-competitor="${item.id}">Scan now</button></td>
+        </tr>`;
+    }).join('') || '<tr><td colspan="7" class="empty">No monitored competitors match this filter.</td></tr>';
+    const count = $('#competitorCount');
+    if (count) count.textContent = `${competitors.length} tracked item${competitors.length === 1 ? '' : 's'}`;
+    body.querySelectorAll('[data-scan-competitor]').forEach(button => {
+      button.addEventListener('click', async () => {
+        const id = button.getAttribute('data-scan-competitor');
+        button.disabled = true;
+        try {
+          const result = await pwApi(`/api/competitors/${id}/scan`, { method: 'POST' });
+          await refreshBackendRecords();
+          toast(result.status === 'price_found'
+            ? `Website price scanned: ${formatMoney(result.price, result.currency)}.`
+            : result.message || 'No reliable website price was found.');
+          if (result.google_maps_warning) toast(`Google Maps refresh failed: ${result.google_maps_warning}`);
+        } catch (error) {
+          toast(`Price scan failed: ${error.message}`);
+        } finally {
+          button.disabled = false;
+        }
+      });
+    });
+  }
+
+  renderCompetitors = renderLiveCompetitors;
 
   function formatMoney(value, currency) {
     if (value === null || value === undefined || !Number.isFinite(Number(value))) return '—';
@@ -390,6 +503,8 @@
   function renderLiveSurface() {
     const connected = Boolean(PW_LIVE);
     const qboConnected = Boolean(quickBooksStatus?.connected);
+    $('#page-suppliers [data-action="addSupplier"]')?.remove();
+    $('#page-products [data-action="addProduct"]')?.remove();
     const count = (selector, value) => { const el = $(selector); if (el) el.textContent = String(value); };
     count('#kpiCompetitors', connected ? competitors.length : 0);
     count('#kpiChanges', connected ? alerts.length : 0);
@@ -423,9 +538,16 @@
     }
 
     const dashboardCharts = $('#page-dashboard')?.querySelectorAll('.chart-card .chart-area') || [];
-    if (dashboardCharts[1]) {
-      dashboardCharts[1].innerHTML = '<div class="empty">Historical trend will appear after multiple live competitor scans. No sample prices are shown.</div>';
-    }
+    dashboardCharts.forEach((chart, index) => {
+      chart.innerHTML = `<div class="empty">${index === 0
+        ? 'Price history will appear after competitor website scans record verified prices.'
+        : 'Supplier price movements will appear when comparable live invoice records are available.'}</div>`;
+    });
+    const dashboardChartHeadings = $('#page-dashboard')?.querySelectorAll('.chart-card .card-head h2') || [];
+    if (dashboardChartHeadings[0]) dashboardChartHeadings[0].textContent = 'Price position overview';
+    if (dashboardChartHeadings[1]) dashboardChartHeadings[1].textContent = 'Competitor price history';
+    const dashboardChartDescriptions = $('#page-dashboard')?.querySelectorAll('.chart-card .card-head p') || [];
+    if (dashboardChartDescriptions[1]) dashboardChartDescriptions[1].textContent = 'Recorded website prices only.';
     const position = $('#page-dashboard .donut-row');
     if (position) {
       const observed = competitors.filter(item => item.liveRecord && item.lastPrice !== null);
@@ -521,10 +643,34 @@
     disconnect.hidden = !quickBooksStatus?.connected;
   }
 
+  function ensureGoogleMapsControls() {
+    const card = $('#page-settings .card');
+    if (!card || $('#pwGoogleMapsControls')) return;
+    const section = document.createElement('section');
+    section.id = 'pwGoogleMapsControls';
+    section.style.cssText = 'margin-top:20px;padding-top:16px;border-top:1px solid var(--line)';
+    section.innerHTML = `
+      <h3>Google Maps price levels</h3>
+      <p id="pwGoogleMapsStatus" style="font-size:12px;color:var(--muted)">Checking provider configuration…</p>
+      <p style="font-size:11px;color:var(--muted)">Google Maps provides an approximate business-level price category, not exact product prices. Exact product prices are scanned from the public website URL you monitor.</p>
+    `;
+    card.append(section);
+  }
+
+  function updateGoogleMapsControls() {
+    ensureGoogleMapsControls();
+    const status = $('#pwGoogleMapsStatus');
+    if (!status) return;
+    status.textContent = providerHealth?.google_places_configured
+      ? 'Google Places is configured. Saved place details and website prices refresh every 15 minutes.'
+      : 'Google Places is not configured. Add GOOGLE_MAPS_API_KEY to the backend environment, enable Places API (New), and restart the API.';
+  }
+
   const oldRender = renderAll;
   renderAll = function () {
     oldRender();
     updateQuickBooksControls();
+    updateGoogleMapsControls();
   };
 
   originalEditNegotiation = editNegotiation;
@@ -564,25 +710,130 @@
     return originalReadAlert(id);
   };
 
-  const previousReview = reviewCompetitor;
   reviewCompetitor = function (id) {
     if (!PW_LIVE) return toast('Connect to the live backend before scanning a competitor.');
-    return previousReview(id);
+    const scanButton = document.querySelector(`[data-scan-competitor="${id}"]`);
+    if (scanButton) return scanButton.click();
+    return toast('Open the competitor list to scan this website.');
   };
-  const previousAddCompetitor = addCompetitor;
   addCompetitor = function () {
     if (!PW_LIVE) return toast('Connect to the live backend before adding a competitor.');
-    return previousAddCompetitor();
+    openModal('Add monitored competitor', `
+      <form id="pwAddCompetitorForm" class="form-grid">
+        <div class="field" style="grid-column:1/-1">
+          <label for="pwPlaceQuery">Find a business in Google Maps</label>
+          <div style="display:flex;gap:8px">
+            <input id="pwPlaceQuery" placeholder="Business name and location" maxlength="250">
+            <button class="btn" type="button" id="pwPlaceSearch">Search</button>
+          </div>
+          <p id="pwMapsSearchMessage" role="status" style="font-size:11px;color:var(--muted)"></p>
+          <div id="pwPlaceResults" class="mini-list"></div>
+        </div>
+        <div class="field"><label for="pwCompetitorName">Competitor name</label><input id="pwCompetitorName" required maxlength="200"></div>
+        <div class="field"><label for="pwProductName">Product or service</label><input id="pwProductName" required maxlength="300" placeholder="Exact product or service"></div>
+        <div class="field" style="grid-column:1/-1"><label for="pwCompetitorUrl">Public page with the exact price</label><input id="pwCompetitorUrl" type="url" required placeholder="https://example.com/product"></div>
+        <div class="field"><label for="pwTargetPrice">Your reference price</label><input id="pwTargetPrice" type="number" min="0" step="any" required></div>
+        <div class="field"><label for="pwCurrency">Currency code</label><input id="pwCurrency" value="USD" maxlength="8" required></div>
+      </form>
+      <p style="font-size:11px;color:var(--muted)">Google Maps price levels are approximate business-level estimates. Exact item prices come only from the public price page above.</p>
+    `, `
+      <button class="btn" type="button" onclick="closeModal()">Cancel</button>
+      <button class="btn primary" type="button" id="pwSaveCompetitor">Add competitor</button>
+    `);
+    const form = $('#pwAddCompetitorForm');
+    const resultContainer = $('#pwPlaceResults');
+    $('#pwPlaceSearch').addEventListener('click', async () => {
+      const query = $('#pwPlaceQuery').value.trim();
+      const message = $('#pwMapsSearchMessage');
+      if (query.length < 2) {
+        message.textContent = 'Enter a business name and location.';
+        return;
+      }
+      form.dataset.googlePlaceId = '';
+      message.textContent = 'Searching Google Maps…';
+      resultContainer.innerHTML = '';
+      try {
+        const response = await pwApi('/api/places/search', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query }),
+        });
+        const places = response.places || [];
+        message.textContent = places.length
+          ? 'Choose a business. Maps price levels are estimates, not product prices.'
+          : 'No matching places were found.';
+        resultContainer.innerHTML = places.map((place, index) => {
+          const name = place.displayName?.text || 'Unnamed place';
+          const level = mapsPriceLevelLabel(place.priceLevel) || 'Not provided';
+          return `
+            <button class="mini-row" type="button" data-place-index="${index}" style="width:100%;border:0;background:#fff;text-align:left">
+              <span class="mini-info"><b>${esc(name)}</b><small>${esc(place.formattedAddress || '')} · Maps price level: ${esc(level)} (estimate)</small></span>
+            </button>`;
+        }).join('');
+        resultContainer.querySelectorAll('[data-place-index]').forEach(button => {
+          button.addEventListener('click', () => {
+            const place = places[Number(button.getAttribute('data-place-index'))];
+            form.dataset.googlePlaceId = place.id;
+            $('#pwCompetitorName').value = place.displayName?.text || '';
+            if (place.websiteUri) $('#pwCompetitorUrl').value = place.websiteUri;
+            message.textContent = place.websiteUri
+              ? `Selected ${place.displayName?.text || 'place'}. Use a specific product or service URL for exact price scans.`
+              : 'Selected place has no website. Enter a public product or service price page manually.';
+          });
+        });
+      } catch (error) {
+        message.textContent = `Google Maps search failed: ${error.message}`;
+      }
+    });
+    $('#pwSaveCompetitor').addEventListener('click', saveNewCompetitor);
   };
   const previousUploadInvoice = uploadInvoice;
   uploadInvoice = function () {
     if (!PW_LIVE) return toast('Connect to the live backend before uploading an invoice.');
     return previousUploadInvoice();
   };
-  const previousSaveNewCompetitor = saveNewCompetitor;
   saveNewCompetitor = async function () {
     if (!PW_LIVE) return toast('Connect to the live backend before saving a competitor.');
-    return previousSaveNewCompetitor();
+    const name = $('#pwCompetitorName')?.value.trim();
+    const product = $('#pwProductName')?.value.trim();
+    const url = $('#pwCompetitorUrl')?.value.trim();
+    const price = Number($('#pwTargetPrice')?.value);
+    const currency = $('#pwCurrency')?.value.trim().toUpperCase();
+    if (!name || !product || !url || !Number.isFinite(price) || price < 0 || !currency) {
+      toast('Enter a competitor, product or service, public price page, reference price, and currency.');
+      return;
+    }
+    try {
+      new URL(url);
+    } catch {
+      toast('Enter a valid public website URL.');
+      return;
+    }
+    const form = $('#pwAddCompetitorForm');
+    const selectedPlaceId = form?.dataset.googlePlaceId || null;
+    const saveButton = $('#pwSaveCompetitor');
+    saveButton.disabled = true;
+    try {
+      await pwApi('/api/competitors', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          product_or_service: product,
+          url,
+          target_price: price,
+          currency,
+          google_place_id: selectedPlaceId,
+        }),
+      });
+      closeModal();
+      await pwLoadLiveData();
+      toast('Competitor added. Run a website scan or wait for the next automatic refresh.');
+    } catch (error) {
+      toast(`Could not add competitor: ${error.message}`);
+    } finally {
+      saveButton.disabled = false;
+    }
   };
 
   function installCsvExport() {
@@ -686,6 +937,24 @@
   setEmptyWorkspace();
   renderAll();
   boot();
+  async function automaticRefresh() {
+    if (!document.body.classList.contains('pw-authenticated') || clientRefreshInProgress) return;
+    clientRefreshInProgress = true;
+    try {
+      await refreshBackendRecords();
+      pwStatus(`Live records refreshed at ${new Date(lastClientRefreshAt).toLocaleTimeString()}.`, true);
+    } catch (error) {
+      pwStatus(`Automatic refresh failed: ${error.message}`, false);
+    } finally {
+      clientRefreshInProgress = false;
+    }
+  }
+  setInterval(automaticRefresh, 15 * 60 * 1000);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && Date.now() - lastClientRefreshAt >= 15 * 60 * 1000) {
+      automaticRefresh();
+    }
+  });
   setInterval(() => {
     if (document.body.classList.contains('pw-authenticated')) refreshLocalePreferences();
   }, 6 * 60 * 60 * 1000);

@@ -280,9 +280,13 @@ async def _qbo_get(db: Session, credential: QuickBooksCredential, path: str, par
 
 
 async def _query_entity(db: Session, credential: QuickBooksCredential, entity: str, limit: int = 100) -> list[dict[str, Any]]:
-    query = f"select * from {entity} ORDERBY TxnDate DESC STARTPOSITION 1 MAXRESULTS {limit}"
+    if entity not in {"Vendor", "Item", "Bill", "PurchaseOrder"}:
+        raise HTTPException(400, "Unsupported QuickBooks entity.")
+    bounded_limit = max(1, min(int(limit), 100))
     if entity in {"Vendor", "Item"}:
-        query = f"select * from {entity} WHERE Active = true STARTPOSITION 1 MAXRESULTS {limit}"
+        query = f"select * from {entity} WHERE Active = true STARTPOSITION 1 MAXRESULTS {bounded_limit}"
+    else:
+        query = f"select * from {entity} ORDERBY TxnDate DESC STARTPOSITION 1 MAXRESULTS {bounded_limit}"
     data = await _qbo_get(db, credential, "query", {"query": query})
     response = data.get("QueryResponse", {})
     if not isinstance(response, dict):
