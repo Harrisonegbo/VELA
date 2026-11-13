@@ -250,12 +250,12 @@ const PW_LOCAL_HOST = ['localhost','127.0.0.1'].includes(location.hostname);
 const PW_DEFAULT_API_BASE = PW_LOCAL_HOST
   ? 'http://127.0.0.1:8001'
   : location.hostname === 'compsuo-dashboard.onrender.com'
-    ? 'https://compsuo-api-xiby.onrender.com'
+    ? 'https://compsuo-api.onrender.com'
     : location.hostname === 'compsuo-dashboard-staging.onrender.com'
       ? 'https://compsuo-api-staging.onrender.com'
-      : 'https://compsuo-api-xiby.onrender.com';
+      : 'https://compsuo-api.onrender.com';
 const pwSecureApiBase = base => {
-  const clean = (base || '').trim().replace(/\/+$/, '').replace(/^https?:\/\/(?:compsuo-api(?:-f1vl)?\.onrender\.com)(?=\/|$)/i, 'https://compsuo-api-xiby.onrender.com');
+  const clean = (base || '').trim().replace(/\/+$/, '').replace(/^https?:\/\/compsuo-api(?:-xiby|-f1vl)?\.onrender\.com(?=\/|$)/i, 'https://compsuo-api.onrender.com');
   if (location.protocol !== 'https:' || !/^http:\/\//i.test(clean)) return clean;
   const host = clean.slice(7).split(/[/:?#]/, 1)[0].toLowerCase();
   return ['localhost', '127.0.0.1'].includes(host) ? clean : `https://${clean.slice(7)}`;

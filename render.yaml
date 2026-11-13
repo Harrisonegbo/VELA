@@ -20,7 +20,7 @@ services:
       - key: TOKEN_ENCRYPTION_KEY
         sync: false
       - key: PUBLIC_API_URL
-        value: https://compsuo-api-xiby.onrender.com
+        value: https://compsuo-api.onrender.com
       - key: DASHBOARD_URL
         value: https://compsuo-dashboard.onrender.com
       - key: QUICKBOOKS_CLIENT_ID
@@ -30,7 +30,7 @@ services:
       - key: QUICKBOOKS_ENVIRONMENT
         value: production
       - key: QUICKBOOKS_REDIRECT_URI
-        value: https://compsuo-api-xiby.onrender.com/api/integrations/quickbooks/callback
+        value: https://compsuo-api.onrender.com/api/integrations/quickbooks/callback
       - key: GOOGLE_MAPS_API_KEY
         sync: false
       - key: CORS_ORIGINS

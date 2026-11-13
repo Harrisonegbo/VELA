@@ -19,7 +19,7 @@ The dashboard loads only saved workspace records and configured provider data; i
 ## Deploy with Render Blueprint
 
 1. Push the contents of this folder to a GitHub repository, then create a Render Blueprint from `render.yaml` for production.
-2. To create staging, create a separate Blueprint from `render.staging.yaml`. It has its own API, dashboard, cron job, and PostgreSQL database; never point the staging services at production resources. The deployed production API URL is `https://compsuo-api-xiby.onrender.com`; the production dashboard's expected URL is `https://compsuo-dashboard.onrender.com`. Staging uses the `-staging` names. Confirm Render assigned these exact hostnames before relying on them.
+2. To create staging, create a separate Blueprint from `render.staging.yaml`. It has its own API, dashboard, cron job, and PostgreSQL database; never point the staging services at production resources. The deployed production API URL is `https://compsuo-api.onrender.com`; the production dashboard's expected URL is `https://compsuo-dashboard.onrender.com`. Staging uses the `-staging` names. Confirm Render assigned these exact hostnames before relying on them.
 3. Configure each environment's secret values independently in its own Render API service:
    - `BOOTSTRAP_ADMIN_TOKEN`: a unique, temporary random token used only to create the first administrator.
    - `TOKEN_ENCRYPTION_KEY`: a unique Fernet key for that environment; never share it between staging and production.
