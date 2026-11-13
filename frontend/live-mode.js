@@ -287,25 +287,6 @@
     alerts = [...alerts.filter(alert => alert.apiKind !== 'quickbooks_observation'), ...sourceAlerts];
   }
 
-  async function applyCompetitorProviderData() {
-    const records = await pwApi('/api/competitors');
-    const byId = new Map(records.map(record => [record.id, record]));
-    competitors = competitors.map(item => {
-      const record = byId.get(item.id);
-      if (!record) return item;
-      return {
-        ...item,
-        theirs: record.last_price === null ? null : Number(record.last_price),
-        lastPrice: record.last_price === null ? null : Number(record.last_price),
-        googlePlaceId: record.google_place_id,
-        googlePriceLevel: record.google_price_level,
-        googlePriceRange: record.google_price_range,
-        googleMapsUri: record.google_maps_uri,
-        googleCheckedAt: record.google_checked_at,
-      };
-    });
-  }
-
   async function refreshBackendRecords() {
     const [, health] = await Promise.all([
       backendLoadLiveData(),
@@ -313,7 +294,6 @@
     ]);
     negotiations = loadNegotiations();
     providerHealth = health;
-    await applyCompetitorProviderData();
     lastClientRefreshAt = Date.now();
     renderAll();
   }
@@ -325,7 +305,6 @@
       pwApi('/api/health'),
     ]);
     negotiations = loadNegotiations();
-    await applyCompetitorProviderData();
     lastClientRefreshAt = Date.now();
     quickBooksStatus = status;
     providerHealth = health;

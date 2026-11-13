@@ -12,13 +12,15 @@
 @media(max-width:720px){.app{display:block}.sidebar{position:fixed;top:0;bottom:0;left:-270px;width:250px;z-index:15;transition:left .2s}.sidebar.open{left:0}.mobile-overlay.show{display:block;position:fixed;inset:0;background:#07182a80;z-index:14}.hamburger{display:block}.topbar{height:58px;padding:0 14px}.location,.user-label{display:none}.content{padding:17px 12px 28px}.pagehead{display:block}.pagehead h1{font-size:22px}.head-actions{margin-top:13px}.kpis{gap:9px}.kpi{padding:12px;gap:8px}.kpi-icon{width:34px;height:34px;font-size:17px}.kpi-value{font-size:21px}.kpi-label{font-size:11px}.kpi-note{font-size:10px}.side-stack,.section-grid{grid-template-columns:1fr}.briefing-grid{grid-template-columns:1fr 1fr}.donut-row{gap:12px}.donut{width:110px;height:110px}.donut:after{inset:18px}.table{min-width:680px}.top-right{gap:8px}.form-grid{grid-template-columns:1fr}.metric-strip{grid-template-columns:1fr 1fr}.metric:last-child{grid-column:span 2}}
 @media(max-width:390px){.briefing-grid{grid-template-columns:1fr}.kpi{display:block}.kpi-icon{margin-bottom:8px}.kpi-value{font-size:20px}.country-picker-button{width:34px;height:34px}.topbar{gap:4px;padding:0 10px}.top-left{gap:8px}.business-select{width:37vw;max-width:155px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
 .country-picker-button{width:38px;height:38px;padding:0;font-size:18px;display:grid;place-items:center}.country-summary{color:var(--muted);font-size:12px;margin:0 0 15px}.country-options{display:grid;gap:12px}.country-options select{width:100%}
+.brand-logo{display:block;width:190px;height:auto}
 </style>
+<link rel="icon" type="image/png" href="assets/compsuo-logo.png">
 <link rel="stylesheet" href="compsuo-theme.css?v=nav-1">
 </head>
 <body>
 <div class="app">
 <aside class="sidebar" id="sidebar">
-  <div class="brand"><span class="brandmark">↗</span><div><strong>COMPSUO</strong><small>Smarter prices. Lower costs. Higher profits.</small></div><button class="sidebar-close" id="sidebarClose" type="button" aria-label="Close navigation menu">×</button></div>
+  <div class="brand"><img class="brand-logo" src="assets/compsuo-logo.png" alt="COMPSUO — Smarter prices. Lower costs. Higher profits."><button class="sidebar-close" id="sidebarClose" type="button" aria-label="Close navigation menu">×</button></div>
   <nav class="nav" id="nav">
     <button class="active" data-page="dashboard"><span class="ico">⌂</span>Dashboard</button>
     <button data-page="competitors"><span class="ico">⌕</span>Competitor Price Watch</button>
@@ -274,7 +276,7 @@ const pwStatus = (message, live=false) => {
 const pwFmtDate = v => { if(!v) return 'Not scanned'; const d=new Date(v); return Number.isNaN(d.getTime())?String(v):d.toLocaleString(selectedLocale); };
 async function pwLoadLiveData() {
   const [cs, ins, als] = await Promise.all([pwApi('/api/competitors'), pwApi('/api/invoices'), pwApi('/api/alerts')]);
-  competitors = cs.map(c=>({id:c.id,item:c.product_or_service,category:'Monitored website',emoji:'🔎',competitor:c.name,mine:Number(c.target_price||0),theirs:c.last_price==null?Number(c.target_price||0):Number(c.last_price),source:c.url,checked:pwFmtDate(c.last_checked_at),url:c.url,currency:c.currency,lastEvidence:c.last_evidence,lastPrice:c.last_price,liveRecord:true}));
+  competitors = cs.map(c=>({id:c.id,item:c.product_or_service,category:'Monitored website',emoji:'🔎',competitor:c.name,mine:Number(c.target_price||0),theirs:c.last_price==null?null:Number(c.last_price),source:c.url,checked:pwFmtDate(c.last_checked_at),url:c.url,currency:c.currency,lastEvidence:c.last_evidence,lastPrice:c.last_price,googlePlaceId:c.google_place_id,googlePriceLevel:c.google_price_level,googlePriceRange:c.google_price_range,googleMapsUri:c.google_maps_uri,googleCheckedAt:c.google_checked_at,liveRecord:true}));
   invoices = ins.map(i=>({id:i.id,supplier:i.supplier,date:i.invoice_date||pwFmtDate(i.created_at),category:(i.line_items||[]).map(x=>x.description).filter(Boolean).slice(0,2).join(', ')||'Extracted invoice',amount:Number(i.total||0),status:'AI extracted — verify',file:i.filename,currency:i.currency,lineItems:i.line_items}));
   savings=[]; suppliers=[]; negotiations=[]; confirmedSavings=0;
   alerts = als.map(a=>({id:a.id,type:String(a.kind||'').includes('supplier')?'supplier':'competitor',title:a.title,detail:a.message,time:pwFmtDate(a.created_at),read:a.status!=='unread',apiKind:a.kind}));
