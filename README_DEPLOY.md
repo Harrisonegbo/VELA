@@ -1,4 +1,4 @@
-# VELA — live-data deployment
+# COMPSUO — live-data deployment
 
 The dashboard loads only saved workspace records and configured provider data; it does not fall back to sample business records. A live deployment requires the FastAPI service, configured user accounts, and provider credentials. This workspace currently supports QuickBooks Online for financial reports, vendors, items, bills, and purchase orders, plus Google Places business discovery and approximate business-level price categories. SAP Ariba is not connected.
 
@@ -7,19 +7,19 @@ The dashboard loads only saved workspace records and configured provider data; i
 - Competitor records, scans, uploaded invoice extraction, and alerts are stored by the FastAPI backend.
 - Google Places can find competitor businesses and return an approximate business price level. Exact product or service prices are scanned from a monitored public website URL; Google Maps does not provide those item-level prices.
 - Competitor website prices and saved Google Places details refresh every 15 minutes. Website scans use the configured OpenAI API and Google Places refreshes use Google Maps Platform; monitor provider quotas and charges.
-- QuickBooks Online connects through OAuth 2.0. VELA reads the Profit and Loss report, vendors, items, bills, and purchase orders. It does not write to QuickBooks.
+- QuickBooks Online connects through OAuth 2.0. COMPSUO reads the Profit and Loss report, vendors, items, bills, and purchase orders. It does not write to QuickBooks.
 - QuickBooks access and refresh tokens are encrypted in the database with `TOKEN_ENCRYPTION_KEY`; provider secrets stay on the backend.
 - User accounts have `admin`, `editor`, and `viewer` roles. Registrations after initial setup remain pending until an administrator approves them.
 - Sessions use random opaque browser tokens; only token hashes are stored in the database. Logging out revokes the server-side session.
 - Write requests, account events, and denied privileged requests are recorded in the `audit_events` table and visible to administrators.
 - Dashboard savings figures are not estimated. They remain unavailable until verified savings are recorded.
-- Negotiation drafts are saved in the current browser only. Email sending is not enabled.
+- Negotiation drafts are saved in browser storage and survive dashboard reloads and live-data refreshes. Email sending is not enabled.
 - SAP Ariba Procurement is not connected yet. Its tenant-specific API specification and access details must be confirmed before implementation.
 
 ## Deploy with Render Blueprint
 
 1. Push the contents of this folder to a GitHub repository, then create a Render Blueprint from `render.yaml` for production.
-2. To create staging, create a separate Blueprint from `render.staging.yaml`. It has its own API, dashboard, cron job, and PostgreSQL database; never point the staging services at production resources. The deployed production API URL is `https://vela-api-xiby.onrender.com`; the production dashboard's expected URL is `https://vela-dashboard.onrender.com`. Staging uses the `-staging` names. Confirm Render assigned these exact hostnames before relying on them.
+2. To create staging, create a separate Blueprint from `render.staging.yaml`. It has its own API, dashboard, cron job, and PostgreSQL database; never point the staging services at production resources. The deployed production API URL is `https://compsuo-api-xiby.onrender.com`; the production dashboard's expected URL is `https://compsuo-dashboard.onrender.com`. Staging uses the `-staging` names. Confirm Render assigned these exact hostnames before relying on them.
 3. Configure each environment's secret values independently in its own Render API service:
    - `BOOTSTRAP_ADMIN_TOKEN`: a unique, temporary random token used only to create the first administrator.
    - `TOKEN_ENCRYPTION_KEY`: a unique Fernet key for that environment; never share it between staging and production.

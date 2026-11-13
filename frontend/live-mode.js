@@ -18,7 +18,7 @@
   document.body.insertAdjacentHTML('beforeend', `
     <section id="pwAuthGate" aria-labelledby="pwAuthTitle">
       <form class="pw-auth-card" id="pwAuthForm">
-        <h1 id="pwAuthTitle">Sign in to VELA</h1>
+        <h1 id="pwAuthTitle">Sign in to COMPSUO</h1>
         <p id="pwAuthDescription">Sign in with your account to access this workspace.</p>
         <label for="pwApiUrl">Backend API URL</label>
         <input id="pwApiUrl" type="url" autocomplete="url" required>
@@ -50,13 +50,23 @@
   let originalEditNegotiation = editNegotiation;
   let originalReadAlert = readAlert;
 
+  function loadNegotiations() {
+    try {
+      const saved = JSON.parse(localStorage.getItem('compsuoNegotiations') || '[]');
+      return Array.isArray(saved) ? saved : [];
+    } catch (error) {
+      console.warn('Could not load locally saved negotiation drafts.', error);
+      return [];
+    }
+  }
+
   function setEmptyWorkspace() {
     competitors = [];
     invoices = [];
     alerts = [];
     savings = [];
     suppliers = [];
-    negotiations = JSON.parse(localStorage.getItem('velaNegotiations') || '[]');
+    negotiations = loadNegotiations();
     quickBooksItems = [];
     quickBooksData = null;
   }
@@ -71,7 +81,7 @@
   function setAuthMode(mode) {
     authMode = mode;
     const registering = mode === 'register';
-    $('#pwAuthTitle').textContent = registering ? 'Create a VELA account' : 'Sign in to VELA';
+    $('#pwAuthTitle').textContent = registering ? 'Create a COMPSUO account' : 'Sign in to COMPSUO';
     $('#pwAuthDescription').textContent = registering
       ? 'New accounts need administrator approval. The first account requires the setup token.'
       : 'Sign in with your account to access this workspace.';
@@ -190,7 +200,7 @@
     const response = await fetch(url, { credentials: 'include', ...options });
     const body = await response.json().catch(() => ({}));
     if (response.status === 404) {
-      throw new Error('Backend API route not found (404). Verify that this URL points to the deployed VELA API service and that its latest backend deployment succeeded.');
+      throw new Error('Backend API route not found (404). Verify that this URL points to the deployed COMPSUO API service and that its latest backend deployment succeeded.');
     }
     if (!response.ok) throw new Error(body.detail || `Request failed (${response.status}).`);
     return body;
@@ -206,7 +216,7 @@
       return;
     }
     PW_API_BASE = enteredBase;
-    localStorage.setItem('velaApiBase', PW_API_BASE);
+    localStorage.setItem('compsuoApiBase', PW_API_BASE);
     button.disabled = true;
     message.textContent = 'Connecting…';
     try {
@@ -301,6 +311,7 @@
       backendLoadLiveData(),
       pwApi('/api/health'),
     ]);
+    negotiations = loadNegotiations();
     providerHealth = health;
     await applyCompetitorProviderData();
     lastClientRefreshAt = Date.now();
@@ -313,6 +324,7 @@
       pwApi('/api/integrations/quickbooks/status'),
       pwApi('/api/health'),
     ]);
+    negotiations = loadNegotiations();
     await applyCompetitorProviderData();
     lastClientRefreshAt = Date.now();
     quickBooksStatus = status;
@@ -451,7 +463,7 @@
         ? `<div class="mini-list">${quickBooksData.price_changes.slice(0, 12).map(change => `<div class="mini-row"><div class="mini-info"><b>${esc(change.supplier)} · ${esc(change.item)}</b><small>${esc(change.evidence)} · ${esc(change.date || '')}</small></div><div class="mini-value">${Number(change.change_percent) > 0 ? '+' : ''}${esc(change.change_percent)}%</div></div>`).join('')}</div>`
         : '<div class="empty">No comparable QuickBooks bill line items are available yet. Price movements require matching supplier and item descriptions across bills.</div>';
     }
-    if (charts[1]) charts[1].innerHTML = '<div class="empty">No verified savings have been recorded. VELA will not estimate savings from incomplete purchasing data.</div>';
+    if (charts[1]) charts[1].innerHTML = '<div class="empty">No verified savings have been recorded. COMPSUO will not estimate savings from incomplete purchasing data.</div>';
   }
 
   function renderFinancialSummary() {
@@ -554,7 +566,7 @@
       const cheaper = observed.filter(item => competitorPosition(item) === 'lower').length;
       const similar = observed.filter(item => competitorPosition(item) === 'similar').length;
       const moreExpensive = observed.filter(item => competitorPosition(item) === 'higher').length;
-      position.innerHTML = `<div class="donut-center">${observed.length}<small>Observed</small></div><div class="legend"><div>Competitor cheaper <b>${cheaper}</b></div><div>Similar <b>${similar}</b></div><div>You are cheaper <b>${moreExpensive}</b></div></div>`;
+      position.innerHTML = `<div class="donut"><div class="donut-center">${observed.length}<small>Observed</small></div></div><div class="legend"><div>Competitor cheaper <b>${cheaper}</b></div><div>Similar <b>${similar}</b></div><div>You are cheaper <b>${moreExpensive}</b></div></div>`;
     }
     const supplierAlerts = $('#dashSupplierAlerts');
     if (supplierAlerts) {
@@ -606,7 +618,7 @@
         <p id="pwQuickBooksStatus" style="font-size:12px;color:var(--muted)">Checking connection…</p>
         <button class="btn primary" id="pwQuickBooksConnect">Connect QuickBooks</button>
         <button class="btn" id="pwQuickBooksDisconnect" hidden>Disconnect</button>
-        <p style="font-size:11px;color:var(--muted)">VELA reads financial reports, vendors, items, bills, and purchase orders. It does not write to QuickBooks.</p>
+        <p style="font-size:11px;color:var(--muted)">COMPSUO reads financial reports, vendors, items, bills, and purchase orders. It does not write to QuickBooks.</p>
       </section>
     `);
     $('#pwQuickBooksConnect').onclick = async () => {
@@ -690,7 +702,7 @@
         benefit: existing.benefit || 0,
       };
       negotiations = [...negotiations.filter(item => item.id !== existing.id), draft];
-      localStorage.setItem('velaNegotiations', JSON.stringify(negotiations));
+      localStorage.setItem('compsuoNegotiations', JSON.stringify(negotiations));
       closeModal();
       renderAll();
       toast('Negotiation draft saved in this browser only.');
@@ -852,11 +864,14 @@
         ['Verified savings', '', quickBooksData.kpis.currency, 'No verified savings recorded'],
       ];
       const csv = rows.map(row => row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(',')).join('\r\n');
+      const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
       const link = document.createElement('a');
-      link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-      link.download = `vela-${quickBooksData.period.end}.csv`;
+      link.href = url;
+      link.download = `compsuo-${quickBooksData.period.end}.csv`;
+      document.body.append(link);
       link.click();
-      URL.revokeObjectURL(link.href);
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
     };
   }
 
@@ -885,7 +900,7 @@
     if (!base) return toast('Enter a backend API URL.');
     if (name) $('#businessSelect').options[0].text = name;
     PW_API_BASE = base;
-    localStorage.setItem('velaApiBase', base);
+    localStorage.setItem('compsuoApiBase', base);
     $('#settingApiBase').value = base;
     await boot();
   };

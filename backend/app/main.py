@@ -20,7 +20,7 @@ from dotenv import load_dotenv
 from openai import APIError, OpenAI
 
 load_dotenv()
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./vela.db")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./compsuo.db")
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {})
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
@@ -128,14 +128,14 @@ class BootstrapClaim(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 Base.metadata.create_all(engine)
-app = FastAPI(title="VELA API", version="0.2.0")
+app = FastAPI(title="COMPSUO API", version="0.2.0")
 _default_cors_origins = [
     "http://localhost:3000",
     "http://localhost:5500",
     "http://127.0.0.1:5500",
     "http://127.0.0.1:8000",
-    "https://vela-dashboard.onrender.com",
-    "https://vela-dashboard-staging.onrender.com",
+    "https://compsuo-dashboard.onrender.com",
+    "https://compsuo-dashboard-staging.onrender.com",
 ]
 configured = [x.strip() for x in os.getenv("CORS_ORIGINS", "").split(",") if x.strip()]
 dashboard_url = urlparse(os.getenv("DASHBOARD_URL", "").strip())
@@ -252,7 +252,7 @@ class InputSecurityMiddleware:
 
         await self.app(scope, replay_receive, send_with_security_headers)
 
-AUTH_COOKIE = "vela_session"
+AUTH_COOKIE = "compsuo_session"
 SESSION_TTL_SECONDS = 60 * 60 * 12
 PUBLIC_API_PATHS = {
     "/api/health",
@@ -790,7 +790,7 @@ async def scan_competitor(competitor_id: int, db: Session = Depends(db_session))
     # This intentionally fetches only the URL the workspace owner explicitly supplied.
     # For JS-rendered pages, use the Playwright worker described in README.
     try:
-        async with httpx.AsyncClient(timeout=20, follow_redirects=True, headers={"User-Agent":"VelaBot/0.1 (+price-monitor; contact configured by operator)"}) as http:
+        async with httpx.AsyncClient(timeout=20, follow_redirects=True, headers={"User-Agent":"CompsuoBot/0.1 (+price-monitor; contact configured by operator)"}) as http:
             resp = await http.get(row.url)
             resp.raise_for_status()
             if "text/html" not in resp.headers.get("content-type","").lower():

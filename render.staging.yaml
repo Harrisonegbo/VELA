@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: vela-api-staging
+    name: compsuo-api-staging
     runtime: python
     rootDir: backend
     buildCommand: pip install -r requirements.txt
@@ -9,7 +9,7 @@ services:
     envVars:
       - key: DATABASE_URL
         fromDatabase:
-          name: vela-db-staging
+          name: compsuo-db-staging
           property: connectionString
       - key: OPENAI_API_KEY
         sync: false
@@ -20,9 +20,9 @@ services:
       - key: TOKEN_ENCRYPTION_KEY
         sync: false
       - key: PUBLIC_API_URL
-        value: https://vela-api-staging.onrender.com
+        value: https://compsuo-api-staging.onrender.com
       - key: DASHBOARD_URL
-        value: https://vela-dashboard-staging.onrender.com
+        value: https://compsuo-dashboard-staging.onrender.com
       - key: QUICKBOOKS_CLIENT_ID
         sync: false
       - key: QUICKBOOKS_CLIENT_SECRET
@@ -30,16 +30,16 @@ services:
       - key: QUICKBOOKS_ENVIRONMENT
         value: sandbox
       - key: QUICKBOOKS_REDIRECT_URI
-        value: https://vela-api-staging.onrender.com/api/integrations/quickbooks/callback
+        value: https://compsuo-api-staging.onrender.com/api/integrations/quickbooks/callback
       - key: GOOGLE_MAPS_API_KEY
         sync: false
       - key: CORS_ORIGINS
-        value: https://vela-dashboard-staging.onrender.com,https://vela-dashboard.onrender.com,http://localhost:3000,http://127.0.0.1:5500,http://localhost:5500,http://127.0.0.1:8000
+        value: https://compsuo-dashboard-staging.onrender.com,https://compsuo-dashboard.onrender.com,http://localhost:3000,http://127.0.0.1:5500,http://localhost:5500,http://127.0.0.1:8000
       - key: PRICE_CREEP_ALERT_PERCENT
         value: "8"
 
   - type: cron
-    name: vela-daily-scan-staging
+    name: compsuo-daily-scan-staging
     runtime: python
     rootDir: backend
     buildCommand: pip install -r requirements.txt
@@ -48,7 +48,7 @@ services:
     envVars:
       - key: DATABASE_URL
         fromDatabase:
-          name: vela-db-staging
+          name: compsuo-db-staging
           property: connectionString
       - key: OPENAI_API_KEY
         sync: false
@@ -58,11 +58,11 @@ services:
         sync: false
 
   - type: web
-    name: vela-dashboard-staging
+    name: compsuo-dashboard-staging
     runtime: static
     rootDir: frontend
-    buildCommand: echo "Serving VELA staging dashboard"
+    buildCommand: echo "Serving COMPSUO staging dashboard"
     staticPublishPath: .
 
 databases:
-  - name: vela-db-staging
+  - name: compsuo-db-staging

@@ -1,5 +1,5 @@
 (() => {
-  const currencyCacheKey = 'velaCurrencyRates';
+  const currencyCacheKey = 'compsuoCurrencyRates';
   const currencyCacheMaxAge = 6 * 60 * 60 * 1000;
 
   function localeForMarket(language, country) {
@@ -132,8 +132,8 @@
     selectedCountry = country;
     selectedLanguage = language;
     selectedLocale = localeForMarket(language, country);
-    localStorage.setItem('velaCountry', country);
-    localStorage.setItem('velaLanguage', language);
+    localStorage.setItem('compsuoCountry', country);
+    localStorage.setItem('compsuoLanguage', language);
     closeModal();
     refreshLocalePreferences();
     toast(`Market set to ${marketName(country, selectedLocale)} · ${language}.`);
